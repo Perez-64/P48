@@ -368,3 +368,204 @@ fieldset input {
     transform: scale(1.1); 
     transition: all 0.3s ease-out; 
 }
+
+/* Favorites Panel */
+
+#favorites-panel {
+    width: 280px;
+    max-height: calc(70vh - 70px);
+    position: fixed;
+    bottom: 30px;
+    right: -290px;
+    background: #FFFFFF;
+    z-index: 1000;
+    padding: 16px 14px;
+    transition: right 0.4s ease-out;
+    overflow-y: auto;
+    border-radius: 12px;
+    box-shadow: -4px 4px 24px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#favorites-panel.open {
+    right: 16px;
+}
+
+.favorites-title {
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--p48-pink);
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 45, 170, 0.2);
+    padding-bottom: 8px;
+}
+
+#favorites-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fav-empty {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 12px 0;
+    line-height: 1.6;
+}
+
+.fav-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(31, 42, 138, 0.1);
+    background: var(--light-bg);
+    transition: border-color 0.2s;
+}
+
+.fav-item:hover {
+    border-color: var(--p48-pink);
+    box-shadow: var(--neon);
+}
+
+.fav-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.fav-call-sign {
+    font-weight: 700;
+    font-size: 0.9em;
+    color: var(--p48-blue);
+}
+
+.fav-detail {
+    font-size: 0.72em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fav-item-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.fav-fly-btn,
+.fav-remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 5px;
+    font-size: 0.85em;
+    transition: background 0.2s;
+}
+
+.fav-fly-btn:hover {
+    background: rgba(31, 42, 138, 0.1);
+}
+
+.fav-remove-btn:hover {
+    background: rgba(255, 45, 170, 0.15);
+    color: var(--p48-pink);
+}
+
+/* Favorites panel toggle button */
+.fav-toggle-btn {
+    position: fixed;
+    bottom: 80px;
+    right: 0;
+    width: 40px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    color: white;
+    background: var(--p48-pink);
+    cursor: pointer;
+    border-radius: 12px 0 0 12px;
+    font-size: 1.4em;
+    box-shadow: -3px 0 10px rgba(255, 45, 170, 0.3);
+    transition: right 0.4s ease-out;
+    z-index: 1001;
+}
+
+#favorites-panel.open ~ #favorites-panel-toggle {
+    right: 296px;
+}
+
+/* Favorites badge in nav */
+.fav-badge {
+    display: inline-block;
+    background: var(--p48-pink);
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 3px;
+    vertical-align: middle;
+    min-width: 18px;
+    text-align: center;
+}
+
+.fav-badge:empty {
+    display: none;
+}
+
+/* Popup styles */
+.popup-content {
+    min-width: 160px;
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.popup-body {
+    font-size: 0.9em;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.fav-btn {
+    background: none;
+    border: none;
+    font-size: 1.4em;
+    cursor: pointer;
+    color: var(--text-secondary);
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.2s, transform 0.15s;
+}
+
+.fav-btn:hover {
+    color: var(--p48-pink);
+    transform: scale(1.2);
+}
+
+.fav-btn.fav-active {
+    color: var(--p48-pink);
+}
+
+/* Wire up the nav favorites button to open the panel */
+#favorites-nav-btn {
+    cursor: pointer;
+}
