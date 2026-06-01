@@ -40,14 +40,14 @@ L.control.zoom({
 const DEFAULT_FILTERS = {
     city: [], 
     service: [], 
-    owner: ["K-LOVE, INC."], 
+    owner: [], 
     state: []
 }
 
 let activeFilters = {
     city: [], 
     service: [], 
-    owner: ["K-LOVE, INC."], 
+    owner: [], 
     state: []
 };
 
@@ -146,6 +146,156 @@ const STATION_MAP = {
     service: (f) => f.properties.service,
     radius: (f) => f.properties.radius_km,
 }
+
+// ==========================================
+// 3.5 Favorites
+// ==========================================
+
+const FAVORITES_KEY = 'radio-map-favorites';
+
+function loadFavorites() {
+    try {
+        return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || {};
+    } catch {
+        return {};
+    }
+}
+
+function saveFavorites(favs) {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+}
+
+function isFavorite(id) {
+    return !!loadFavorites()[id];
+}
+
+function toggleFavorite(feature) {
+    const favs = loadFavorites();
+    const id = STATION_MAP.id(feature);
+
+    if (favs[id]) {
+        delete favs[id];
+    } else {
+        favs[id] = {
+            id,
+            call_sign: STATION_MAP.call_sign(feature),
+            city: STATION_MAP.city(feature),
+            state: STATION_MAP.state(feature),
+            owner: STATION_MAP.owner(feature),
+            frequency: STATION_MAP.frequency(feature),
+            service: STATION_MAP.service(feature),
+            latlng: STATION_MAP.latlng(feature),
+        };
+    }
+
+    saveFavorites(favs);
+    renderFavoritesPanel();
+
+    // Refresh popup so the heart icon updates
+    locationMarkersLayer.eachLayer(layer => {
+        if (layer.feature && STATION_MAP.id(layer.feature) === id) {
+            if (layer.isPopupOpen()) {
+                layer.setPopupContent(buildPopupHTML(layer.feature));
+            }
+        }
+    });
+}
+
+function buildPopupHTML(feature) {
+    const id = STATION_MAP.id(feature);
+    const starred = isFavorite(id);
+    return `
+        <div class="popup-content">
+            <div class="popup-header">
+                <strong>${STATION_MAP.call_sign(feature)}</strong>
+                <button class="fav-btn ${starred ? 'fav-active' : ''}" 
+                        onclick="toggleFavorite(window._popupFeature)" 
+                        title="${starred ? 'Remove from favorites' : 'Add to favorites'}">
+                    ${starred ? '★' : '☆'}
+                </button>
+            </div>
+            <div class="popup-body">
+                ${STATION_MAP.city(feature)}, ${STATION_MAP.state(feature)}<br>
+                ${STATION_MAP.owner(feature)}<br>
+                ${STATION_MAP.frequency(feature)} ${STATION_MAP.service(feature)}
+            </div>
+        </div>
+    `;
+}
+
+function renderFavoritesPanel() {
+    const favs = loadFavorites();
+    const list = document.getElementById('favorites-list');
+    const count = document.getElementById('favorites-count');
+    const favEntries = Object.values(favs);
+
+    count.textContent = favEntries.length > 0 ? favEntries.length : '';
+
+    list.innerHTML = '';
+
+    if (favEntries.length === 0) {
+        list.innerHTML = '<li class="fav-empty">No favorites yet.<br>Click ☆ on any station popup.</li>';
+        return;
+    }
+
+    favEntries.forEach(fav => {
+        const li = document.createElement('li');
+        li.className = 'fav-item';
+        li.innerHTML = `
+            <div class="fav-item-info">
+                <span class="fav-call-sign">${fav.call_sign}</span>
+                <span class="fav-detail">${fav.frequency} ${fav.service} · ${fav.city}, ${fav.state}</span>
+            </div>
+            <div class="fav-item-actions">
+                <button class="fav-fly-btn" title="Fly to station" onclick="flyToFavorite('${fav.id}')">📍</button>
+                <button class="fav-remove-btn" title="Remove favorite" onclick="removeFavorite('${fav.id}')">✕</button>
+            </div>
+        `;
+        list.appendChild(li);
+    });
+}
+
+function flyToFavorite(id) {
+    const favs = loadFavorites();
+    const fav = favs[id];
+    if (!fav) return;
+    map.flyTo(fav.latlng, 9);
+
+    // Open that station's popup if visible on map
+    locationMarkersLayer.eachLayer(layer => {
+        if (layer.feature && STATION_MAP.id(layer.feature) === id) {
+            layer.openPopup();
+        }
+    });
+}
+
+function removeFavorite(id) {
+    const favs = loadFavorites();
+    delete favs[id];
+    saveFavorites(favs);
+    renderFavoritesPanel();
+
+    // Refresh popup heart if open
+    locationMarkersLayer.eachLayer(layer => {
+        if (layer.feature && STATION_MAP.id(layer.feature) === id) {
+            if (layer.isPopupOpen()) {
+                layer.setPopupContent(buildPopupHTML(layer.feature));
+            }
+        }
+    });
+}
+
+// Favorites panel toggle
+const favoritesPanel = document.getElementById('favorites-panel');
+const favoritesPanelToggle = document.getElementById('favorites-panel-toggle');
+
+favoritesPanelToggle.addEventListener('click', () => {
+    favoritesPanel.classList.toggle('open');
+});
+
+document.getElementById('favorites-nav-btn').addEventListener('click', () => {
+    favoritesPanel.classList.toggle('open');
+});
 
 // ==========================================
 // 4. Station Search & Dropdown Logic
@@ -275,12 +425,11 @@ const locationMarkersLayer = L.geoJSON(null, {
             map.flyTo(STATION_MAP.latlng(feature), 9)
         })
 
-        layer.bindPopup(`
-            <strong>${STATION_MAP.call_sign(feature)}</strong><br>
-            ${STATION_MAP.city(feature)}, ${STATION_MAP.state(feature)}<br>
-            ${STATION_MAP.owner(feature)}<br>
-            ${STATION_MAP.frequency(feature)} ${STATION_MAP.service(feature)}
-        `);
+        layer.bindPopup(buildPopupHTML(feature));
+
+        layer.on('popupopen', () => {
+            window._popupFeature = feature;
+        });
 
         currentLatLngData.push({ latlng: STATION_MAP.latlng(feature), layer });
     }
@@ -327,13 +476,13 @@ function clearFilters() {
     activeFilters = {
         city: [], 
         service: [], 
-        owner: ["K-LOVE, INC."], 
+        owner: [], 
         state: []
     };
     checkBoxes.forEach(checkbox => {
         checkbox.checked = false; 
     })
-    stationInput.value = "K-LOVE, INC."; 
+    stationInput.value = ""; 
     stateInput.value = ""; 
     cityInput.value = ""; 
 
@@ -463,6 +612,7 @@ async function loadData() {
         clearFilters(); 
         console.log(activeFilters);
         toggleMarkers();
+        renderFavoritesPanel();
 
         console.log("GeoJSON data loaded and added to layer successfully!");
         
@@ -471,4 +621,4 @@ async function loadData() {
     }
 }
 
-loadData(); 
+loadData();
