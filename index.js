@@ -1,326 +1,159 @@
-/**
- * @important Consider splitting json files for organization for later sprints
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="./styles.css" rel="stylesheet" type="text/css">
+    <link rel="icon" type="image/png" href="./images/favicon_io/favicon.ico" >  
+<!-- Leaflet API CSS and JavaScript connection-->
+    <link 
+    rel="stylesheet" 
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+    />
 
-// ==========================================
-// 1. Map & Legend Initialization
-// ==========================================
+    <script 
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin="">
+    </script>
 
-const map = L.map('map', { zoomControl: false }).setView([40, -95.46], 5);
+    <title>Radio Map</title>
+</head>
+<body>
+    <header>
+        <a href="https://p48marketing.com/">
+            <img src="./images/P48_Logo.png" />
+        </a>
+        <nav class="navbar">
+            <ul>
+                <li><a href="https://www.fcc.gov/media/radio/broadcast-radio-links" target="_blank">Data Sourcing</a></li>
+                <li><a href="https://p48marketing.com/team/" target="_blank">About Us</a></li>
+                <li><a href="https://p48marketing.com/#letstalk" target="_blank">Contact Us</a></li>
+                <li onclick="toggleMarkers()" id="toggle-plots">Show Plots</li>
+                <li id="favorites-nav-btn">★ Favorites <span id="favorites-count" class="fav-badge"></span></li>
+            </ul>
+        </nav>
+    </header>
 
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19, 
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">Open Street Map</a>'
-}).addTo(map)
+    <main>
+        <aside id="filter-bar">
+            <!-- Radio Station Selection-->
+            <section class="section-reveal" id="radio-station">
+                <button class="reveal">Radio Station</button>
 
-window.addEventListener('load', () => {
-    map.invalidateSize();
-});
+                <form class="content" autocomplete="off">
+                    <label for="station-search" >Search Licensee</label>
+                    <input type="text" id="station-search" class="search" placeholder="Search stations..." autocomplete="off" />
+                    <ul id="station-list" class="hidden dropdown-list">
+                        </ul>
 
-/*
-Optional for dark mode users
+                    <label for="genre-search">Search Genres</label>
+                    <input type="text" id="genre-search" class="search" placeholder="E.x. Top 40... " autocomplete="off" />
+                    <ul id="genre-list" class="hidden dropdown-list">
+                        </ul>
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO'
-}).addTo(map);
+                    <!-- Radio Broadcasting Type -->
+                    <fieldset>
+                        <legend>Choose Broadcasting Type</legend>
+                        <input type="checkbox" id="radio-am" name="broadcast-select"/>
+                        <label for="radio-am" >AM</label>
 
-*/
+                        <input type="checkbox" id="radio-fm" name="broadcast-select"/>
+                        <label for="radio-fm" >FM</label>
 
-const legend = L.control({ position: "bottomright" }); 
+                        <input type="checkbox" id="radio-fl" name="broadcast-select"/>
+                        <label for="radio-fl" >FL</label>
+                        
+                        <input type="checkbox" id="radio-fb" name="broadcast-select"/>
+                        <label for="radio-fb" >FB</label>
 
-L.control.zoom({
-    position: 'topright'
-}).addTo(map); 
+                        <input type="checkbox" id="radio-fs" name="broadcast-select"/>
+                        <label for="radio-fs" >FS</label>
 
-// ==========================================
-// 2. UI Transitions & Animations
-// ==========================================
+                        <input type="checkbox" id="radio-fx" name="broadcast-select"/>
+                        <label for="radio-fx" >FX</label>
+                    </fieldset>
 
-// Defining Filters
-const DEFAULT_FILTERS = {
-    city: "", 
-    service: [], 
-    owner: "", 
-    state: ""
-}
+                <button type="button" onclick="clearFilters()" id="reset-button">Reset Filters</button>
 
-let activeFilters = { ...DEFAULT_FILTERS, service: [] };
+                </form>
+            </section>
 
-function applyFilters(feature) {
-    return Object.entries(activeFilters).every(([type, filterValue]) => {
-        if (Array.isArray(filterValue) && filterValue.length === 0) return true;
+            <!-- Location Selection-->
+            <section class="section-reveal">
+                <button class="reveal">Location</button>
+                
+                <form class="content" autocomplete="off">
+                    <label for="state-search">Search States</label>
+                    <input type="text" id="state-search" class="search" placeholder="Search states..." autocomplete="off" />
+                    <ul id="state-list" class="hidden dropdown-list">
+                        </ul>
+                    
+                    <label for="city-search">Search Cities</label>
+                    <input type="text" id="city-search" class="search" placeholder="Search cities..." autocomplete="off" />
+                    <ul id="city-list" class="hidden dropdown-list">
+                        </ul>
+                </form>
+            <!-- -->
+            </section>
+            <section class="section-reveal">
+                <button class="reveal">Map Toggles</button>
+
+                <form class="content" autocomplete="off">
+                    <button type="button" onclick="toggleRadius()" id="toggle-radius" class="utility-button">Toggle Radius</button>
+                    <button type="button" onclick="findNearestStation()" id="nearest-station" class="utility-button">Find Nearest Station</button>
+                </form>
+            </section>
+            <section class="section-reveal">
+                <button class="reveal">Something else</button>
+
+                <div class="content">
+                    <p>some text</p>
+                    <p>lorem is </p>
+                </div>
+            </section>
+        </aside>
+        <button id="filter-toggle" class="toggle-button">
+            <span class="arrow">▶</span>
+        </button>
         
-        if (!filterValue || filterValue === "--ALL--") return true; 
+        <div id="map"></div>
 
-        const actualValue = STATION_MAP[type](feature); 
+        <aside id="active-filters">
+            <section id="active-stations" class="active-section">
+                <h2>Active Radio-Stations</h2>
+                <ul class="active-stations-list">
+                </ul>
+            </section>
 
-        if (Array.isArray(filterValue)) {
-            return filterValue.includes(String(actualValue).toUpperCase());
-        }
+            <section id="active-states" class="active-section">
+                <h2>Active States</h2>
+                <ul class="active-states-list">
+                </ul>
+            </section>
 
-        return String(actualValue).toLowerCase() === String(filterValue).toLowerCase(); 
-    })
-}
+            <section id="active-cities" class="active-section">
+                <h2>Active Cities</h2>
+                <ul class="active-cities-list">
+                </ul>
+            </section>
+        </aside>
+        <button id="active-filter-toggle" class="toggle-button">
+            <span class="arrow">◀</span>
+        </button>
 
-// Filter Transitions 
-let reveals = document.querySelectorAll(".reveal");
+        <!-- Favorites Panel -->
+        <div id="favorites-panel">
+            <h2 class="favorites-title">★ Favorites</h2>
+            <ul id="favorites-list"></ul>
+        </div>
+        <button id="favorites-panel-toggle" class="toggle-button fav-toggle-btn">
+            <span>★</span>
+        </button>
+    </main>
 
-reveals.forEach(btn => {
-    btn.addEventListener('click', function() {
-        this.classList.toggle("active"); 
-
-        const content = this.nextElementSibling; 
-        if (content.style.maxHeight) {
-            content.style.maxHeight = null;
-        } else {
-            content.style.maxHeight = content.scrollHeight + "px";
-        }
-    })
-})
-
-// Aside Transition
-const filterBar = document.getElementById("filter-bar");
-const filterBarToggle = document.getElementById("filter-toggle");
-
-filterBarToggle.addEventListener('click', () => {
-    filterBar.classList.toggle('open');
-});
-
-// ==========================================
-// 3. Data Processing Utilities
-// ==========================================
-
-/**
- * @important Build validation functions later 
- * @important Add other variables here later. 
- */
-
-const STATION_MAP = {
-    id: (f) => f.properties.id,
-    latlng: (f) => {
-        const coords = f.geometry.coordinates; 
-        return [coords[1], coords[0]];
-    },
-    call_sign: (f) => f.properties.call_sign, 
-    city: (f) => f.properties.city, 
-    state: (f) => f.properties.state, 
-    frequency: (f) => f.properties.frequency, 
-    status: (f) => f.properties.status,
-    owner: (f) => f.properties.owner,
-    service: (f) => f.properties.service,
-    radius: (f) => f.properties.radius_km,
-}
-
-// ==========================================
-// 4. Station Search & Dropdown Logic
-// ==========================================
-
-let licenseeData; 
-const limit = 8; 
-
-const input = document.getElementById("station-search");
-const stateInput = document.getElementById("state-search");
-const cityInput = document.getElementById("city-search")
-const list = document.getElementById("station-list"); 
-
-function displayList(filterText = "") {
-    const filteredData = licenseeData.filter(item => item.toLowerCase().includes(filterText.toLowerCase())); 
-
-    let topEightResults = filteredData.slice(0, limit);
-    
-    list.innerHTML = ""; 
-
-    if (topEightResults.length > 0) {
-        // Reveals the list
-        list.classList.remove("hidden"); 
-        topEightResults.forEach(listItem => {
-            let li = document.createElement('li'); 
-            li.textContent = listItem; 
-            li.addEventListener("mousedown", () => {
-                input.value = listItem; 
-                list.classList.add('hidden'); 
-                onFilterChange("owner", listItem)
-            });
-            list.appendChild(li); 
-        });
-    } else {
-        list.classList.add('hidden'); 
-    }
-}
-
-input.addEventListener('input', (event) => displayList(event.target.value)); 
-
-document.addEventListener('click', (event) => {
-    if (event.target !== input && event.target !== list) {
-        list.classList.add('hidden'); 
-    }
-})
-
-// ==========================================
-// 4.5 Radio Station Service
-// ==========================================
-const checkBoxes = document.querySelectorAll('fieldset input[type="checkbox"]'); 
-
-checkBoxes.forEach(checkbox => {
-    checkbox.addEventListener("change", function (e) {
-        const checkBoxText = e.target.nextElementSibling.textContent.trim(); 
-
-        if (e.target.checked) {
-            console.log(`${e.target.nextElementSibling.textContent.trim()} was checked`);
-
-            if (!activeFilters["service"].includes(checkBoxText)) {
-                onFilterChange("service", checkBoxText, "array");
-            }            
-        } else {
-            console.log(`${e.target.nextElementSibling.textContent.trim()} was checked`);
-            if (activeFilters["service"].includes(checkBoxText)) {
-                onFilterChange("service", checkBoxText, "array", true);
-            }          
-        }
-    });
-});
-
-// ==========================================
-// 5. Leaflet Layer Management
-// ==========================================
-
-/**
- * @important Make changes here in the future. This is hard-coded information
- */ 
-let geoJsonData = null;
-let showMarkers = false; 
-let activeCircle = null
-
-const locationMarkersLayer = L.geoJSON(null, {
-    filter: feature => applyFilters(feature), 
-    onEachFeature: function (feature, layer) {
-        layer.on('click', function() {
-            if (activeCircle && map.hasLayer(activeCircle)) {
-                map.removeLayer(activeCircle); 
-            }
-
-            activeCircle = L.circle(STATION_MAP.latlng(feature), {
-                radius: STATION_MAP.radius(feature) * 1000, 
-                color: 'red', 
-                weight: 1, 
-                fillOpacity: 0.2
-            }).addTo(map);
-            
-            map.flyTo(STATION_MAP.latlng(feature), 9)
-        })
-
-        layer.bindPopup(`
-            <strong>${STATION_MAP.call_sign(feature)}</strong><br>
-            ${STATION_MAP.city(feature)}, ${STATION_MAP.state(feature)}<br>
-            ${STATION_MAP.owner(feature)}<br>
-            ${STATION_MAP.frequency(feature)} ${STATION_MAP.service(feature)}
-        `);
-    }
-}).addTo(map); 
-
-function updateMapFilters() {
-    if (!geoJsonData) {
-        return; 
-    }
-
-    locationMarkersLayer.clearLayers(); 
-
-    if (activeCircle && map.hasLayer(activeCircle)) {
-        map.removeLayer(activeCircle); 
-    }
-
-    if (showMarkers) {
-        locationMarkersLayer.addData(geoJsonData); 
-    }
-}
-
-function onFilterChange(filterKey, newValue, type = null, clear = null) {
-    if (type == "array") {
-        if (clear) {
-            const index = activeFilters[filterKey].indexOf(newValue); 
-            activeFilters[filterKey].splice(index, 1); 
-        } else {
-            activeFilters[filterKey].push(newValue); 
-        }
-        
-        updateMapFilters();
-        return; 
-    } 
-
-    activeFilters[filterKey] = newValue; 
-    updateMapFilters(); 
-}
-
-function clearFilters() {
-    activeFilters = { ...DEFAULT_FILTERS, service: [] }; 
-
-    checkBoxes.forEach(checkbox => {
-        checkbox.checked = false; 
-    })
-    input.value = ""; 
-    updateMapFilters(); 
-}
-
-function showLocations() {
-    locationMarkersLayer.addTo(map); 
-    console.log("Location Markers added successfully!");
-    showMarkers = true; 
-    updateMapFilters();
-}
-
-function hideMarkers() {
-    showMarkers = false; 
-    updateMapFilters();    
-
-    if (map) {
-        map.flyTo([40, -95.46], 5);
-    } 
-}
-
-/**
- * @important Set to focus Ohio state
- */
-
-function toggleMarkers() {
-    const toggleButton = document.getElementById("toggle-plots"); 
-    if (showMarkers) {
-        hideMarkers(); 
-        toggleButton.textContent = "Show Plots"
-    } else {
-        showLocations(); 
-        map.flyTo([40.361667, -82.741667], 7);
-        toggleButton.textContent = "Hide Plots"
-    }
-}
-
-// ==========================================
-// 6. Data Loading & Execution
-// ==========================================
-
-async function loadData() { 
-    const filePath = './radio_data/all_radio_stations.geojson'; 
-
-    try {
-        const response = await fetch(filePath); 
-        
-        if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`); 
-
-        geoJsonData = await response.json(); 
-
-        licenseeData = geoJsonData.metadata?.owners || []; 
-        licenseeData.unshift("--ALL--");
-
-        clearFilters(); 
-        document.getElementById("radio-am").checked = true; 
-        onFilterChange("service", "AM", "array"); 
-        onFilterChange("state", "OH");
-        toggleMarkers();
-
-        console.log("GeoJSON data loaded and added to layer successfully!");
-        
-    } catch (error) {
-        console.log(`Couldn't load geojson data: ${error}`)
-    }
-}
-
-loadData(); 
+    <script src="test.js"></script>
+</body>
+</html>
