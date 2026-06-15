@@ -44,7 +44,6 @@ const DEFAULT_FILTERS = {
     state: []
 };
 
-// TESTINGGG
 const disabledFilters = {
   city: new Set(),
   service: new Set(),
@@ -65,7 +64,7 @@ function applyFilters(feature) {
 
     if (Array.isArray(filterValue)) {
       const enabled = filterValue.filter(v => !disabledFilters[type].has(v));
-      if (enabled.length === 0) return true;   // see note below
+      if (enabled.length === 0) return true;
       const actual = String(STATION_MAP[type](feature)).toUpperCase();
       return enabled.map(v => v.toUpperCase()).includes(actual);
     }
@@ -74,22 +73,6 @@ function applyFilters(feature) {
     return String(STATION_MAP[type](feature)).toLowerCase() === String(filterValue).toLowerCase();
   });
 }
-
-/*function applyFilters(feature) {
-    return Object.entries(activeFilters).every(([type, filterValue]) => {
-        if (Array.isArray(filterValue) && filterValue.length === 0) return true;
-        if (!filterValue || filterValue === "--ALL--") return true; 
-        if (!STATION_MAP[type]) return true; 
-
-        const actualValue = STATION_MAP[type](feature); 
-
-        if (Array.isArray(filterValue)) {
-            return filterValue.map(v => v.toUpperCase()).includes(String(actualValue).toUpperCase());
-        }
-
-        return String(actualValue).toLowerCase() === String(filterValue).toLowerCase(); 
-    })
-}*/
 
 // Filter Transitions 
 let reveals = document.querySelectorAll(".reveal");
@@ -128,9 +111,9 @@ window.addEventListener("DOMContentLoaded", () => {
 // Open all collapsible filter sections on page load
 window.addEventListener("DOMContentLoaded", () => {
     reveals.forEach(btn => {
-        btn.classList.add("active"); // visually mark as open
+        btn.classList.add("active");
         const content = btn.nextElementSibling;
-        content.style.maxHeight = content.scrollHeight + "px"; // expand panel
+        content.style.maxHeight = content.scrollHeight + "px";
     });
 });
 
@@ -185,7 +168,7 @@ function renderFilterChips() {
           disabledFilters[filterKey].add(value);
         }
         li.classList.toggle('chip-disabled', !checkbox.checked);
-        updateMapFilters();   // re-run your map filtering
+        updateMapFilters();
       });
 
       li.append(removeBtn, label, checkbox);
@@ -194,22 +177,15 @@ function renderFilterChips() {
   });
 }
 
-/*function renderFilterChips() {
-    Object.entries(CHIPS_CONFIG).forEach(([filterKey, listEl]) => {
-        if (!listEl) {
-            console.error(`CHIPS_CONFIG: no element found for key "${filterKey}"`);
-            return;
-        }
-        listEl.innerHTML = ''; 
-
-        activeFilters[filterKey].forEach(value => {
-            const li = document.createElement('li'); 
-            li.className = 'filter-chip'; 
-            li.innerHTML = li.innerHTML = `<span title="Remove Filter"><button onclick="onFilterChange('${filterKey}', '${value}', true)">✕</button></span> <span>${value}</span>`; 
-            listEl.append(li); 
-        });
-    });
-}*/
+// FIX 1 (Bug 5): Changed fallback from `|| {}` to `|| []` so flatMap always receives an array
+function getAvailableCities() {
+    if (activeFilters.state.length === 0) {
+        return [...new Set(Object.values(geoJsonData.metadata?.cities || {}).flat())];
+    }
+    return [...new Set(
+        activeFilters.state.flatMap(state => geoJsonData.metadata?.cities[state] || [])
+    )];
+}
 
 // ==========================================
 // 3. Data Processing Utilities
@@ -321,12 +297,11 @@ checkBoxes.forEach(checkbox => {
 
         if (e.target.checked) {
             console.log(`${e.target.nextElementSibling.textContent.trim()} was checked`);
-
             if (!activeFilters["service"].includes(checkBoxText)) {
                 onFilterChange("service", checkBoxText);
             }            
         } else {
-            console.log(`${e.target.nextElementSibling.textContent.trim()} was checked`);
+            console.log(`${e.target.nextElementSibling.textContent.trim()} was unchecked`);
             if (activeFilters["service"].includes(checkBoxText)) {
                 onFilterChange("service", checkBoxText, true);
             }          
@@ -392,26 +367,32 @@ function updateMapFilters() {
     }
 }
 
+// FIX 2 (Bug 7): Mutate activeFilters FIRST, then refresh cityData so getAvailableCities()
+// reads the already-updated state list. Also flattened the --ALL-- case into the main flow
+// instead of an early return, keeping update/render calls in one place at the bottom.
 function onFilterChange(filterKey, newValue, clear = false) {
     if (newValue === "--ALL--") {
         activeFilters[filterKey] = [];
-        updateMapFilters();
-        renderFilterChips();
-        return;
-    }
-
-    if (clear) {
+    } else if (clear) {
         const index = activeFilters[filterKey].indexOf(newValue);
-        activeFilters[filterKey].splice(index, 1);
+        if (index > -1) activeFilters[filterKey].splice(index, 1);
     } else {
         if (!activeFilters[filterKey].includes(newValue)) {
             activeFilters[filterKey].push(newValue);
         }
     }
+
+    if (filterKey === "state") {
+        cityData = getAvailableCities();
+        cityData.unshift("--ALL--");
+    }
+
     updateMapFilters();
     renderFilterChips();
 }
 
+// FIX 3 (Bug 4): Removed the onStateSelect("--ALL--") call that was triple-firing
+// updateMapFilters and renderFilterChips. cityData is now set directly here once.
 function clearFilters() {
     activeFilters = {
         city: [], 
@@ -419,21 +400,21 @@ function clearFilters() {
         owner: ["K-LOVE, INC."],
         state: []
     };
-    
+
     checkBoxes.forEach(checkbox => {
         checkbox.checked = false; 
-    })
+    });
 
     stationInput.value = "K-LOVE, INC.";
-    stateInput.value = ""; 
-    cityInput.value = ""; 
+    stateInput.value = "";
+    cityInput.value = "";
 
-    onStateSelect("--ALL--");
-    stateInput.value = "--ALL--";
+    cityData = getAvailableCities();
+    cityData.unshift("--ALL--");
+
     updateMapFilters(); 
     renderFilterChips();
-
-    map.flyTo([40, -95.46], 5)
+    map.flyTo([40, -95.46], 5);
 }
 
 function showLocations() {
@@ -452,17 +433,22 @@ function hideMarkers() {
     } 
 }
 
+// FIX 4 (Bug 3): Removed direct cityData assignments that bypassed getAvailableCities().
+// --ALL-- case now resets state and refreshes city pool directly.
+// The else branch just clears the input and delegates entirely to onFilterChange,
+// which handles the cityData refresh, updateMapFilters, and renderFilterChips.
 function onStateSelect(state) {
     if (state === "--ALL--") {
-        cityData = [...new Set(Object.values(geoJsonData.metadata?.cities || {}).flat())];
-        activeFilters.state = []; 
+        activeFilters.state = [];
+        cityData = getAvailableCities();
+        cityData.unshift("--ALL--");
+        cityInput.value = "";
+        updateMapFilters();
+        renderFilterChips();
     } else {
-        cityData = geoJsonData.metadata?.cities[state] || [];
+        cityInput.value = "";
         onFilterChange("state", state);
     }
-    cityData.unshift("--ALL--"); 
-    cityInput.value = ""; 
-    updateMapFilters();
 }
 
 /**
@@ -491,7 +477,7 @@ function toggleRadius() {
 
 // 5.5 Other Utility Functions
 function haversineDistance(latlng1, latlng2) {
-    const R = 6371; // Earth radius in kilometers
+    const R = 6371;
     const toRadians = (degree) => (degree * Math.PI) / 180;
 
     const dLat = toRadians(latlng2[0] - latlng1[0]);
@@ -506,9 +492,11 @@ function haversineDistance(latlng1, latlng2) {
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c; // Distance in kilometers
+    return R * c;
 }
 
+// FIX 5 (Bug 6): Added null guard — if no stations are visible (filtered out or hidden),
+// nearestStation stays null and would crash on .latlng access. Now exits gracefully.
 function findNearestStation() {
     let nearestStation = null; 
     let minDistance = Infinity; 
@@ -522,6 +510,11 @@ function findNearestStation() {
             nearestStation = { latlng, layer };
         }
     });
+
+    if (!nearestStation) {
+        console.warn("No visible stations to snap to.");
+        return;
+    }
     
     map.flyTo(nearestStation.latlng, 9);
     nearestStation.layer.openPopup(); 
@@ -547,9 +540,7 @@ async function loadData() {
 
         stateData = geoJsonData.metadata?.states || []; 
         stateData = [...new Set(stateData)];
-        stateData.unshift("--ALL--")
-
-        cityData = [...new Set(Object.values(geoJsonData.metadata?.cities || {}).flat())];
+        stateData.unshift("--ALL--");
 
         clearFilters(); 
         console.log(activeFilters);
@@ -562,4 +553,4 @@ async function loadData() {
     }
 }
 
-loadData(); 
+loadData();
