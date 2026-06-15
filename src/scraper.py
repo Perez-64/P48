@@ -39,7 +39,7 @@ CLASS_RADIUS_KM = {
 #first function - fetches url
 def fetch_stations(url):
     print(f"Fetching data from: {url}")
-    response = requests.get(url, headers=HEADERS, verify=False)
+    response = requests.get(url, headers=HEADERS, verify=False, timeout=20)
     
     if response.status_code == 200:
         print("Success! Data received.")
@@ -91,11 +91,11 @@ def parse_stations(raw_text):
                 continue
 
             latitude = round(lat_deg + lat_min / 60 + lat_sec / 3600, 6)
-            longitude = round(-(lon_deg + lon_min / 60 + lon_sec / 3600), 6)
+            longitude = round(lon_deg + lon_min / 60 + lon_sec / 3600, 6)
 
-            if lat_dir == "S":
+            if lat_dir.upper() == "S":
                 latitude = -latitude
-            if lon_dir == "E":
+            if lon_dir.upper() == "W":
                 longitude = -longitude
                 
             stations.append ({
@@ -123,7 +123,7 @@ def clean_frequency(frequency_str):
         cleaned = "".join(c for c in frequency_str if c.isdigit() or c == ".")
         return float(cleaned)
     except (ValueError, TypeError): 
-        return 0.0; 
+        return 0.0
 
 #main fucntion - calls fetch and parse functions, combines and saves data as geoJson
 def main():
@@ -225,7 +225,7 @@ def main():
     with open(output_file, "w") as f:
         json.dump(combinedGeoJson, f, indent=2)
     
-    print(f"Done! {len(all_stations)} stations saved to {output_file}")
+    print(f"Done! {len(combinedGeoJson['features'])} stations saved to {output_file}")
 
 if __name__ == "__main__":
     main()
